@@ -9,7 +9,11 @@ pepper="${1:-pepper}"
 build="$(mktemp -d)"
 trap 'rm -rf "$build"' EXIT
 
-# The package is the module `mypkg`: a folder of that name on the import path.
+# The package is the module `web`: a folder of that name on the import path.
 mkdir "$build/packages"
-ln -s "$root" "$build/packages/mypkg"
-"$pepper" test -I "$build/packages" "$root/tests"
+ln -s "$root" "$build/packages/web"
+cd "$root"
+"$pepper" test -I "$build/packages" tests
+
+# The example app must build.
+"$pepper" build -I "$build/packages" examples/app/main.pep -o "$build/app"
