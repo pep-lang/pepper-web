@@ -93,8 +93,8 @@ export struct Form {
 ## `filename` become `files` and the rest `fields`, decoded as UTF-8.
 ##
 ## @param request the request
-## @returns the form; an error for another content type, a missing
-##   boundary, an invalid percent-escape, or a multipart body that is not
+## @returns the form; an error for another content type, a missing or
+##   invalid boundary (RFC 2046: 1 to 70 characters), an invalid percent-escape, or a multipart body that is not
 ##   well formed
 export parse_form(request: http.Request): Result<Form> {
     var content_type = request.headers.get("Content-Type").value_or("");
@@ -110,8 +110,8 @@ export parse_form(request: http.Request): Result<Form> {
     }
     if (media == "multipart/form-data") {
         var boundary = _form_parameter(content_type, "boundary").value_or("");
-        if (boundary.size == 0) {
-            return Result<Form>.err(Error("multipart/form-data without a boundary"));
+        if (!_form_valid_boundary(boundary)) {
+            return Result<Form>.err(Error("multipart/form-data without a valid boundary"));
         }
         return _form_parse_multipart(request.body(), boundary);
     }
@@ -136,6 +136,22 @@ _form_parameter(header: String, name: String): String? {
         index = index + 1;
     }
     return Optional<String>.Empty;
+}
+
+# Whether `boundary` follows RFC 2046: 1 to 70 of its characters. Having
+# no CR keeps delimiter matches from overlapping, so `_form_find` stays
+# linear in the body's size.
+_form_valid_boundary(boundary: String): bool {
+    if (boundary.size == 0 || boundary.size > 70 || boundary.ends_with(" ")) {
+        return false;
+    }
+    for (var c in boundary.bytes()) {
+        var letter_or_digit = (c >= 'a' && c <= 'z') || (c >= 'A' && c <= 'Z') || (c >= '0' && c <= '9');
+        if (!letter_or_digit && !"'()+_,-./:=? ".bytes().contains(c)) {
+            return false;
+        }
+    }
+    return true;
 }
 
 # Splits a multipart body on `--boundary` lines into fields and files.
@@ -218,8 +234,8 @@ _form_at(data: u8[], position: ulong, needle: u8[]): bool {
 }
 
 # The position of the first `needle` in `data` at or after `from`.
-# shortcut: a naive O(n*m) search, fine for form bodies under the server's
-# 16 MiB limit with short boundaries; move to the runtime if it gets a
+# A naive search: linear for a valid boundary (see `_form_valid_boundary`).
+# shortcut: a private helper; move to the runtime if it gets a
 # byte-sequence search.
 _form_find(data: u8[], needle: u8[], from: ulong): ulong? {
     var position = from;

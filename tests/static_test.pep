@@ -97,6 +97,10 @@ refuses_paths_that_leave_the_root() {
         "/static/C:/Windows/win.ini",
         "/static/hello.txt%00.png",
         "/static/hello.txt::$DATA",
+        # Windows drops trailing dots and spaces from names.
+        "/static/..%20/secret.txt",
+        "/static/.../secret.txt",
+        "/static/.%2e%20/secret.txt",
     ];
     for (var url in attempts) {
         var response = get(url);

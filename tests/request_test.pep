@@ -182,6 +182,24 @@ refuses_malformed_multipart_bodies() {
 }
 
 [Test]
+refuses_boundaries_rfc_2046_does_not_allow() {
+    for (var boundary in ["x".repeat(71), "a\rb", "a;b", "a\"b", "trailing "]) {
+        expect_true(with_boundary(boundary).form().is_err());
+    }
+    expect_equal(with_boundary("x".repeat(70)).form().value().get("a").value(), "1");
+}
+
+# A one-field multipart request with `boundary`.
+with_boundary(boundary: String): web.Context {
+    var c = context("POST", "/upload");
+    c.request.headers["Content-Type"] = "multipart/form-data; boundary=\"" + boundary + "\"";
+    c.request.set_text(
+        "--" + boundary + "\r\nContent-Disposition: form-data; name=\"a\"\r\n\r\n1\r\n--" + boundary + "--"
+    );
+    return c;
+}
+
+[Test]
 parses_a_json_body() {
     var c = context("POST", "/items");
     c.request.set_text("{\"name\": \"pepper\", \"count\": 3}");

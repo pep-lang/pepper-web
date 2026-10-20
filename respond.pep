@@ -49,7 +49,12 @@ export json_response(value: json.JsonValue, status: int = 200): http.Response {
 ##   client follow with a `GET`; 307 and 308 keep the method; 301 and 302
 ##   are the older permanent and temporary forms
 ## @returns the response, with a `Location` field and no body
+## @panics if `location` holds a CR, LF or NUL ("invalid redirect
+##   location"), which would split the response; encode text from the
+##   request (`Uri.encode`) before putting it in a URL
 export redirect(location: String, status: int = 303): http.Response {
+    var bytes = location.bytes();
+    assert(!bytes.contains(13) && !bytes.contains(10) && !bytes.contains(0), "invalid redirect location");
     var response = http.Response(status);
     response.headers["Location"] = location;
     return response;

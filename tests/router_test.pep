@@ -164,3 +164,9 @@ builds_responses() {
     expect_equal(moved.status, 303);
     expect_equal(moved.headers.get("Location").value(), "/login");
 }
+
+[Test]
+[ShouldPanic("invalid redirect location")]
+refuses_a_redirect_that_would_split_the_response() {
+    web.redirect("/next\r\nSet-Cookie: admin=1");
+}
