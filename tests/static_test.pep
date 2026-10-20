@@ -7,6 +7,7 @@ import async;
 import compress;
 import http;
 import io;
+import tls;
 import web;
 
 routes(router: web.Router) {
@@ -27,6 +28,11 @@ get(url: String): http.Response {
 # Sends `requests` (whose urls are paths) to a server running `routes`,
 # over loopback, and returns the responses.
 fetch(requests: Array<http.Request>): Array<http.Response> {
+    # The client sets up TLS once for the program (OpenSSL, on Linux and
+    # macOS), which the leak check would count; the runtime's tests do the same.
+    keep_for_the_program(() => {
+        tls.TlsConnector.create();
+    });
     var responses = Array<http.Response>();
     async.run(() => {
         var server = http.Server.bind(io.SocketAddress.parse("127.0.0.1:0").value()).value();
