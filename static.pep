@@ -33,7 +33,8 @@ export const MAX_GZIP_SIZE: ulong = 4194304;
 ## JavaScript, SVG, XML) of at most `MAX_GZIP_SIZE` bytes is gzipped for a
 ## client that accepts it, with `Vary: Accept-Encoding`. The gzipped body
 ## is kept in memory (up to `MAX_GZIP_CACHE_SIZE` bytes over all files) and
-## made again only when the file's size or modification time changes.
+## made again only when the file's size or modification time changes, or
+## after it was dropped to make room.
 ##
 ## @param root the folder to serve
 ## @returns the handler
@@ -188,8 +189,11 @@ _static_gzipped(path: io.Path, size: ulong, modified: long): u8[]? {
         return Optional<u8[]>.Empty;
     }
     var body = compress.Gzip.compress(data.value());
-    with (var cache = _gzip_cache.lock()) {
-        cache.put(copy(key), size, modified, copy(body));
+    # A file rewritten since its metadata was read is served, not kept.
+    if (data.value().count == size) {
+        with (var cache = _gzip_cache.lock()) {
+            cache.put(copy(key), size, modified, copy(body));
+        }
     }
     return Optional<u8[]>.Value(body);
 }
