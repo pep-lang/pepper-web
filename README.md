@@ -29,7 +29,10 @@ One module, **`web`**:
 - **Static files**: `static_files(root)` serves a folder from a
   `{*path}` route, with content types, `index.html` for folders, `ETag`
   and `If-None-Match` (`304`), single `Range` requests (`206`, `416`) with
-  `If-Range`, and gzip for text when the client accepts it. It refuses
+  `If-Range`, and gzip for text when the client accepts it. A gzipped
+  body is kept in memory (32 MiB at most, `MAX_GZIP_CACHE_SIZE`, least
+  recently served dropped first) until the file's size or modification
+  time changes, so a file is not compressed on every request. It refuses
   any path that could leave `root`: `..` segments, absolute paths,
   backslashes, drive or stream names (`:`), and NULs, percent-encoded or
   not.
@@ -147,7 +150,7 @@ runs the `[Test]` functions in `tests/` with `pepper test`, from the
 repository's root: routing and middleware (`router_test.pep`); queries,
 cookies, forms and JSON (`request_test.pep`); and static files over
 loopback, path traversal included (`static_test.pep`, with files in
-`tests/testdata/`). It then builds the example app.
+`tests/testdata/`), and the cache of gzipped files (`gzip_cache_test.pep`). It then builds the example app.
 
 ## Releasing
 

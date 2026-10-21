@@ -179,8 +179,17 @@ gzipped(url: String, accept: String): http.Request {
     return request;
 }
 
+# Gzips hello.txt into the cache of gzipped files, which keeps it for the
+# rest of the program.
+cache_hello() {
+    keep_for_the_program(() => {
+        answer(gzipped("/static/hello.txt", "gzip"));
+    });
+}
+
 [Test]
 gzips_text_for_a_client_that_accepts_it() {
+    cache_hello();
     var responses = fetch([gzipped("/static/hello.txt", "br, gzip;q=0.8"), gzipped("/static/hello.txt", "identity")]);
     var packed = responses[0];
     expect_equal(packed.headers.get("Content-Encoding").value(), "gzip");
@@ -191,8 +200,40 @@ gzips_text_for_a_client_that_accepts_it() {
     expect_equal(responses[1].text(), "hello, world\n");
 }
 
+# The gzipped body of `name` under `root`, decompressed.
+gunzipped(root: io.Path, name: String): u8[] {
+    var router = web.Router();
+    router.get("/f/{*path}", web.static_files(root));
+    var body = router.handle(gzipped("/f/" + name, "gzip")).body();
+    return compress.Gzip.decompress(body).value();
+}
+
+[Test]
+gzips_a_changed_file_again() {
+    var root = io.Directory.temp().join("pepper-web-gzip-cache-test");
+    io.Directory.remove_all(root);
+    io.Directory.create(root).value();
+    var file = root.join("page.txt");
+    io.File.write_text(file, "first\n").value();
+    file.set_modified(1000000000000000000).value();
+    keep_for_the_program(() => {
+        expect_true(gunzipped(root, "page.txt") == "first\n".bytes());
+    });
+    expect_true(gunzipped(root, "page.txt") == "first\n".bytes());
+    # The same size, modified later.
+    io.File.write_text(file, "again\n").value();
+    file.set_modified(1000000001000000000).value();
+    expect_true(gunzipped(root, "page.txt") == "again\n".bytes());
+    # Another size, at the same time.
+    io.File.write_text(file, "longer\n").value();
+    file.set_modified(1000000001000000000).value();
+    expect_true(gunzipped(root, "page.txt") == "longer\n".bytes());
+    io.Directory.remove_all(root).value();
+}
+
 [Test]
 does_not_gzip_when_refused_or_binary() {
+    cache_hello();
     expect_true(answer(gzipped("/static/hello.txt", "gzip;q=0")).headers.get("Content-Encoding").is_empty());
     expect_true(answer(gzipped("/static/hello.txt", "gzip; q=0.000")).headers.get("Content-Encoding").is_empty());
     expect_true(answer(gzipped("/static/pixel.png", "gzip")).headers.get("Content-Encoding").is_empty());

@@ -13,7 +13,8 @@
 ##   responses and a logging middleware
 ## - `Cookie`, `SameSite`, `set_cookie`, `parse_cookies`: cookies
 ## - `Form`, `FormFile`, `parse_form`: form bodies, multipart included
-## - `static_files`, `content_type`, `MAX_GZIP_SIZE`: static files
+## - `static_files`, `content_type`, `MAX_GZIP_SIZE`,
+##   `MAX_GZIP_CACHE_SIZE`: static files
 ##
 ## @example
 ##     import async;
@@ -39,6 +40,7 @@
 
 import "cookie";
 import "form";
+import "gzip_cache";
 import "respond";
 import "router";
 import "static";
@@ -61,5 +63,6 @@ export FormFile;
 export Form;
 export parse_form;
 export MAX_GZIP_SIZE;
+export MAX_GZIP_CACHE_SIZE;
 export static_files;
 export content_type;
