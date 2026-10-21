@@ -5,6 +5,7 @@
 import compress;
 import http;
 import io;
+import "gzip_cache";
 import "respond";
 import "router";
 
@@ -30,7 +31,10 @@ export const MAX_GZIP_SIZE: ulong = 4194304;
 ## `416 Range Not Satisfiable`), unless an `If-Range` names another
 ## `ETag`; several ranges get the whole file. A text file (`text/*`, JSON,
 ## JavaScript, SVG, XML) of at most `MAX_GZIP_SIZE` bytes is gzipped for a
-## client that accepts it, with `Vary: Accept-Encoding`.
+## client that accepts it, with `Vary: Accept-Encoding`. The gzipped body
+## is kept in memory (up to `MAX_GZIP_CACHE_SIZE` bytes over all files) and
+## made again only when the file's size or modification time changes, or
+## after it was dropped to make room.
 ##
 ## @param root the folder to serve
 ## @returns the handler
@@ -154,18 +158,44 @@ _static_serve(root: io.Path, context: Context): http.Response {
     }
 
     if (gzip) {
-        var data = io.File.read_bytes(path);
-        if (data.is_err()) {
+        var body = _static_gzipped(path, size, metadata.value().modified);
+        if (body.is_empty()) {
             return text("Internal Server Error", 500);
         }
         response.headers["Content-Encoding"] = "gzip";
-        return response.set_body(compress.Gzip.compress(data.value()));
+        return response.set_body(body.value());
     }
     var file = io.File.open(path);
     if (file.is_err()) {
         return text("Internal Server Error", 500);
     }
     return response.set_reader(file.value(), size as long);
+}
+
+# The gzipped contents of the file at `path`, of `size` bytes modified at
+# `modified`: from the cache, or read, compressed and cached. None when the
+# file cannot be read.
+_static_gzipped(path: io.Path, size: ulong, modified: long): u8[]? {
+    var key = path.to_string();
+    with (var cache = _gzip_cache.lock()) {
+        var hit = cache.get(copy(key), size, modified);
+        if (hit.is_value()) {
+            return Optional<u8[]>.Value(copy(hit.value()));
+        }
+    }
+    # Compressed outside the lock, so other files are served meanwhile.
+    var data = io.File.read_bytes(path);
+    if (data.is_err()) {
+        return Optional<u8[]>.Empty;
+    }
+    var body = compress.Gzip.compress(data.value());
+    # A file rewritten since its metadata was read is served, not kept.
+    if (data.value().count == size) {
+        with (var cache = _gzip_cache.lock()) {
+            cache.put(copy(key), size, modified, copy(body));
+        }
+    }
+    return Optional<u8[]>.Value(body);
 }
 
 # Whether a response of media type `media` is worth compressing.
