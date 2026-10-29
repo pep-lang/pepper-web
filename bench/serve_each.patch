@@ -1,0 +1,65 @@
+--- a/runtime/http/server.pep
++++ b/runtime/http/server.pep
+@@ -135,10 +135,32 @@
+             loop.join();
+         }
+     }
++    ## Experiment: like `serve`, but calls `make` once per connection, in
++    ## the connection's task, for the handler of that connection's requests.
++    ##
++    ## @param make makes one connection's handler
++    serve_each(make: shared () => (Request) => Response) {
++        var server = this;
++        var loops = async.spawn_on_each_worker(() => {
++            while (true) {
++                var accepted = server._listener.accept();
++                if (accepted.is_err()) {
++                    return;
++                }
++                var (tcp, peer) = accepted.value();
++                async.Task<void>.spawn_local(() => {
++                    _http_serve_connection(server, tcp, make());
++                });
++            }
++        });
++        for (var loop in loops) {
++            loop.join();
++        }
++    }
+ }
+ 
+ # Serves one connection until it closes, fails, or asks to close.
+-_http_serve_connection(server: Server, tcp: io.TcpStream, handler: shared (Request) => Response) {
++_http_serve_connection(server: Server, tcp: io.TcpStream, handler: (Request) => Response) {
+     var connection = _HttpConnection(tcp);
+     if (server._secure) {
+         var stream = server._acceptor.accept(tcp);
+@@ -170,7 +192,7 @@
+ }
+ 
+ # Reads one request and answers it; whether to keep the connection.
+-_http_serve_one(reader: _HttpReader, handler: shared (Request) => Response): bool {
++_http_serve_one(reader: _HttpReader, handler: (Request) => Response): bool {
+     var first = reader._line(_HTTP_MAX_LINE);
+     if (first.is_err()) {
+         _http_refuse(reader, 400);
+--- a/runtime/http/h2.pep
++++ b/runtime/http/h2.pep
+@@ -1274,7 +1274,7 @@
+ # Serves HTTP/2 on a connection whose client preface `reader` has just
+ # read, until the connection ends: each stream is answered in a task of its
+ # own on this worker.
+-_h2_serve(reader: _HttpReader, handler: shared (Request) => Response) {
++_h2_serve(reader: _HttpReader, handler: (Request) => Response) {
+     var connection = _H2Connection(reader, true);
+     var out = Array<u8>();
+     connection._append_settings(out);
+@@ -1297,7 +1297,7 @@
+ }
+ 
+ # Reads the request on `stream`, calls `handler`, and sends the response.
+-_h2_answer(connection: _H2Connection, stream: _H2Stream, handler: shared (Request) => Response) {
++_h2_answer(connection: _H2Connection, stream: _H2Stream, handler: (Request) => Response) {
+     # `_on_request_head` checked the head.
+     var head = stream.fields.value();
+     var method = _h2_pseudo(head, ":method").value();

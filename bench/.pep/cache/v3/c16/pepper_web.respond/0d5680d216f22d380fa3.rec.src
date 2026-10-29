@@ -1,0 +1,463 @@
+pepper recheck 1
+bf6d6a2c302998c171080d977cd9c61bac0f6c7ba5b00f881d2fbfa519861274
+2
+pepper_web/respond
+2997
+## Responses and middleware: `text`, `html`, `json_response` and
+## `redirect` build common responses; `log_requests` is a middleware that
+## logs each request.
+
+import http;
+import json;
+import log;
+import os;
+import "router";
+
+## Returns a response with `body` as `text/plain; charset=utf-8`.
+##
+## @param body the text
+## @param status the status code
+## @returns the response
+export text(body: String, status: int = 200): http.Response {
+    var response = http.Response(status).set_text(body);
+    response.headers["Content-Type"] = "text/plain; charset=utf-8";
+    return response;
+}
+
+## Returns a response with `body` as `text/html; charset=utf-8`.
+##
+## @param body the HTML
+## @param status the status code
+## @returns the response
+export html(body: String, status: int = 200): http.Response {
+    var response = http.Response(status).set_text(body);
+    response.headers["Content-Type"] = "text/html; charset=utf-8";
+    return response;
+}
+
+## Returns a response with `value` written as compact JSON, as
+## `application/json`.
+##
+## @param value the JSON value
+## @param status the status code
+## @returns the response
+export json_response(value: json.JsonValue, status: int = 200): http.Response {
+    var response = http.Response(status).set_text(value.to_string());
+    response.headers["Content-Type"] = "application/json";
+    return response;
+}
+
+## Returns a redirect to `location`.
+##
+## @param location the URL to go to, absolute or relative to the request's
+## @param status the status code: 303 See Other (the default) makes the
+##   client follow with a `GET`; 307 and 308 keep the method; 301 and 302
+##   are the older permanent and temporary forms
+## @returns the response, with a `Location` field and no body
+## @panics if `location` holds a CR, LF or NUL ("invalid redirect
+##   location"), which would split the response; encode text from the
+##   request (`Uri.encode`) before putting it in a URL
+export redirect(location: String, status: int = 303): http.Response {
+    var bytes = location.bytes();
+    assert(!bytes.contains(13) && !bytes.contains(10) && !bytes.contains(0), "invalid redirect location");
+    var response = http.Response(status);
+    response.headers["Location"] = location;
+    return response;
+}
+
+## A middleware that logs each request at the `info` level once it is
+## answered, with its method, path, status and time in milliseconds, under
+## the target `web`.
+##
+## @param context the request
+## @param next the rest of the chain
+## @returns `next`'s response
+## @example
+##     var router = web.Router().use(web.log_requests);
+export log_requests(context: Context, next: Handler): http.Response {
+    var start = os.Instant.now();
+    var response = next(context);
+    log.info(
+        $"{context.request.method} {context.request.path()} {response.status}",
+        [log.field("ms", start.elapsed().milliseconds())],
+        "web"
+    );
+    return response;
+}
+pepper_web/router
+14132
+## Routing: `Router` sends each request to the handler registered for its
+## method and path, through the router's middleware; `Context` is what a
+## handler gets; `serve` runs a router on an `http.Server`.
+
+import http;
+import json;
+import "cookie";
+import "form";
+import "respond";
+
+## A function that answers one request.
+export type Handler = (Context) => http.Response;
+
+## A function that wraps the rest of the chain: it gets the request's
+## `Context` and `next`, the handler (or the next middleware) it wraps. It
+## may answer by itself, or call `next(context)` and return or change that
+## response.
+export type Middleware = (Context, Handler) => http.Response;
+
+## What a handler gets for one request: the request itself and the path
+## parameters its route matched, with helpers that read the query, the
+## cookies and the body.
+export struct Context {
+    ## The request, with its body read in full.
+    var request: http.Request;
+    ## The path parameters of the matched route, decoded: `{id}` in
+    ## `/users/{id}` is `params["id"]`. Empty for a request no route matched.
+    var params: HashMap<String, String>;
+
+    ## Creates the context of `request`, with no path parameters.
+    ##
+    ## @param request the request
+    construct(request: http.Request) {
+        this.request = request;
+        this.params = HashMap<String, String>();
+    }
+
+    ## Returns the path parameter `name`, decoded.
+    ##
+    ## @param name the parameter's name in the route, such as `id` for `{id}`
+    ## @returns its value, or `""` when the route has no such parameter
+    param(name: String): String {
+        return params.try_get(name).value_or("");
+    }
+
+    ## Returns the first value of the query parameter `name`, decoded as a
+    ## form (`+` is a space).
+    ##
+    ## @param name the parameter's name
+    ## @returns its first value; none when the query does not have it or is
+    ##   not valid form encoding
+    query(name: String): String? {
+        for (var pair in query_pairs()) {
+            if (pair.0 == name) {
+                return Optional<String>.Value(pair.1);
+            }
+        }
+        return Optional<String>.Empty;
+    }
+
+    ## Returns every name and value of the query, decoded, in order.
+    ##
+    ## @returns the pairs; empty when there is no query or it is not valid
+    ##   form encoding
+    query_pairs(): Array<(String, String)> {
+        var pairs = Uri.decode_form(request.query());
+        if (pairs.is_err()) {
+            return Array<(String, String)>();
+        }
+        return pairs.value();
+    }
+
+    ## Returns the value of the cookie `name` that the client sent.
+    ##
+    ## @param name the cookie's name
+    ## @returns its value, without quotes; none when the request has no such
+    ##   cookie
+    cookie(name: String): String? {
+        for (var header in request.headers.values("Cookie")) {
+            for (var pair in parse_cookies(header)) {
+                if (pair.0 == name) {
+                    return Optional<String>.Value(pair.1);
+                }
+            }
+        }
+        return Optional<String>.Empty;
+    }
+
+    ## Parses the body as a form: `application/x-www-form-urlencoded` or
+    ## `multipart/form-data` (see `parse_form`).
+    ##
+    ## @returns the form's fields and files, or an error for another content
+    ##   type or a malformed body
+    form(): Result<Form> {
+        return parse_form(request);
+    }
+
+    ## Parses the body as JSON.
+    ##
+    ## @returns the value, or the parse error
+    json(): Result<json.JsonValue, json.JsonError> {
+        return _parse_json(request.text());
+    }
+}
+
+# `json.parse`, outside `Context`, whose `json` method hides the module.
+_parse_json(body: String): Result<json.JsonValue, json.JsonError> {
+    return json.parse(body);
+}
+
+# One registered route: its method and its pattern, split into segments.
+struct _Route {
+    var method: String;
+    var segments: String[];
+    var handler: Handler;
+
+    construct(method: String, segments: String[], handler: Handler) {
+        this.method = method;
+        this.segments = segments;
+        this.handler = handler;
+    }
+}
+
+## Sends each request to the handler of the first route whose method and
+## path pattern match it, through the router's middleware.
+##
+## A pattern is a path whose segments are literal text, `{name}` (any one
+## segment, as the parameter `name`) or, as the last segment, `{*name}` (the
+## rest of the path, slashes included, possibly empty). Literal segments
+## and parameters are compared after percent-decoding, segment by segment.
+## A `HEAD` request also matches `GET` routes (the server sends no body).
+##
+## A path no route matches gets `404 Not Found`; a path that matches only
+## routes of other methods gets `405 Method Not Allowed` with an `Allow`
+## field; a path with an invalid percent-escape gets `400 Bad Request`.
+## These pass through the middleware too.
+##
+## A router is used on one thread; `serve` builds one for each request.
+##
+## @example
+##     var router = web.Router();
+##     router.get("/users/{id}", (c) => web.text("user " + c.param("id")));
+##     router.get("/files/{*path}", (c) => web.text("file " + c.param("path")));
+##     var response = router.handle(http.Request("GET", "/users/42"));   # 200, "user 42"
+export struct Router {
+    var _routes: Array<_Route>;
+    var _middleware: Array<Middleware>;
+
+    ## Creates a router with no routes and no middleware.
+    construct() {
+        _routes = Array<_Route>();
+        _middleware = Array<Middleware>();
+    }
+
+    ## Adds a route for `method` and `pattern`. Routes are tried in the order
+    ## they were added.
+    ##
+    ## @param method the method, such as `GET`; compared exactly
+    ## @param pattern the path pattern, such as `/users/{id}`
+    ## @param handler answers the requests the route matches
+    ## @returns this router
+    ## @panics if `pattern` does not start with `/` ("route pattern must
+    ##   start with '/'") or has `{*name}` before its last segment ("a
+    ##   wildcard must be the last segment")
+    route(method: String, pattern: String, handler: Handler): Router {
+        assert(pattern.starts_with("/"), $"route pattern must start with '/': '{pattern}'");
+        var segments = pattern.substr_bytes(1, pattern.size - 1).split("/");
+        ulong index = 0;
+        while (index + 1 < segments.count) {
+            assert(!segments[index].starts_with("{*"), $"a wildcard must be the last segment: '{pattern}'");
+            index = index + 1;
+        }
+        _routes.append(_Route(method, segments, handler));
+        return this;
+    }
+
+    ## Adds a `GET` route (which `HEAD` requests match too).
+    ##
+    ## @param pattern the path pattern
+    ## @param handler answers the requests the route matches
+    ## @returns this router
+    ## @panics as `route` does
+    get(pattern: String, handler: Handler): Router {
+        return route("GET", pattern, handler);
+    }
+
+    ## Adds a `POST` route.
+    ##
+    ## @param pattern the path pattern
+    ## @param handler answers the requests the route matches
+    ## @returns this router
+    ## @panics as `route` does
+    post(pattern: String, handler: Handler): Router {
+        return route("POST", pattern, handler);
+    }
+
+    ## Adds a `PUT` route.
+    ##
+    ## @param pattern the path pattern
+    ## @param handler answers the requests the route matches
+    ## @returns this router
+    ## @panics as `route` does
+    put(pattern: String, handler: Handler): Router {
+        return route("PUT", pattern, handler);
+    }
+
+    ## Adds a `PATCH` route.
+    ##
+    ## @param pattern the path pattern
+    ## @param handler answers the requests the route matches
+    ## @returns this router
+    ## @panics as `route` does
+    patch(pattern: String, handler: Handler): Router {
+        return route("PATCH", pattern, handler);
+    }
+
+    ## Adds a `DELETE` route.
+    ##
+    ## @param pattern the path pattern
+    ## @param handler answers the requests the route matches
+    ## @returns this router
+    ## @panics as `route` does
+    delete(pattern: String, handler: Handler): Router {
+        return route("DELETE", pattern, handler);
+    }
+
+    ## Adds a middleware around every request, the 404, 405 and 400 answers
+    ## included. The first one added is the outermost: it sees the request
+    ## first and the response last.
+    ##
+    ## @param middleware the middleware
+    ## @returns this router
+    use(middleware: Middleware): Router {
+        _middleware.append(middleware);
+        return this;
+    }
+
+    ## Answers `request`: finds its route, then runs the middleware and the
+    ## route's handler.
+    ##
+    ## @param request the request; its `url` is the request target
+    ##   (`/path?query`)
+    ## @returns the response
+    handle(request: http.Request): http.Response {
+        var context = Context(request);
+        var handler: Handler = _endpoint(context);
+        var index = _middleware.count;
+        while (index > 0) {
+            index = index - 1;
+            var middleware = _middleware[index];
+            var next = handler;
+            handler = (c) => middleware(c, next);
+        }
+        return handler(context);
+    }
+
+    # The handler for `context`'s request, filling in its path parameters:
+    # the matched route's, or one answering 400, 404 or 405.
+    _endpoint(context: Context): Handler {
+        var raw = context.request.path();
+        if (!raw.starts_with("/")) {
+            return (c) => _status(400);
+        }
+        var segments = Array<String>();
+        for (var piece in raw.substr_bytes(1, raw.size - 1).split("/")) {
+            var decoded = Uri.decode(piece);
+            if (decoded.is_err()) {
+                return (c) => _status(400);
+            }
+            segments.append(decoded.value());
+        }
+        var method = context.request.method;
+        var allowed = Array<String>();
+        for (var route in _routes) {
+            var params = _match(route.segments, segments);
+            if (params.is_empty()) {
+                continue;
+            }
+            if (route.method == method || (method == "HEAD" && route.method == "GET")) {
+                context.params = params.value();
+                return route.handler;
+            }
+            if (!allowed.contains(route.method)) {
+                allowed.append(route.method);
+                if (route.method == "GET" && !allowed.contains("HEAD")) {
+                    allowed.append("HEAD");
+                }
+            }
+        }
+        if (allowed.count == 0) {
+            return (c) => _status(404);
+        }
+        var allow = ", ".join(allowed);
+        return (c) => {
+            var response = _status(405);
+            response.headers["Allow"] = allow;
+            return response;
+        };
+    }
+}
+
+# The path parameters when `pattern` matches the decoded path `segments`.
+_match(pattern: String[], segments: String[]): HashMap<String, String>? {
+    var params = HashMap<String, String>();
+    ulong index = 0;
+    while (index < pattern.count) {
+        var part = pattern[index];
+        if (part.starts_with("{*") && part.ends_with("}")) {
+            var rest = Array<String>();
+            while (index < segments.count) {
+                rest.append(segments[index]);
+                index = index + 1;
+            }
+            params[part.substr_bytes(2, part.size - 3)] = "/".join(rest);
+            return Optional<HashMap<String, String>>.Value(params);
+        }
+        if (index >= segments.count) {
+            return Optional<HashMap<String, String>>.Empty;
+        }
+        var segment = segments[index];
+        if (part.starts_with("{") && part.ends_with("}")) {
+            if (segment.size == 0) {
+                return Optional<HashMap<String, String>>.Empty;
+            }
+            params[part.substr_bytes(1, part.size - 2)] = segment;
+        } else if (part != segment) {
+            return Optional<HashMap<String, String>>.Empty;
+        }
+        index = index + 1;
+    }
+    if (index != segments.count) {
+        return Optional<HashMap<String, String>>.Empty;
+    }
+    return Optional<HashMap<String, String>>.Value(params);
+}
+
+# A plain-text response with the status's reason phrase as its body.
+_status(status: int): http.Response {
+    return text(http.reason_phrase(status), status);
+}
+
+## Serves requests from `server` with a router that `app` sets up, until
+## the task is cancelled (when `async.run` ends). For each request it makes
+## a `Router`, calls `app` to add the routes and middleware, and lets the
+## router answer. A router and its handlers are not thread-safe, so they
+## are not shared between the worker threads of `async.run`: keep `app` to
+## adding routes, and put state the handlers share, such as a connection
+## pool or a counter, in a `[Shared]` struct (or an `async.Atomic<T>`) at
+## module scope.
+##
+## @param server the server, from `http.Server.bind` or `bind_tls`
+## @param app adds the routes and middleware to a new router
+## @panics outside `async.run`
+## @example
+##     routes(router: web.Router) {
+##         router.get("/", (c) => web.text("hello"));
+##     }
+##
+##     main(): int {
+##         async.run(() => {
+##             var server = http.Server.bind(io.SocketAddress.parse("127.0.0.1:8080").value()).value();
+##             web.serve(server, routes);
+##         });
+##         return 0;
+##     }
+export serve(server: http.Server, app: shared (Router) => void) {
+    # shortcut: a router per request, since a thread-local one can neither
+    # take the request nor hand back the response without copying both
+    # (pep-lang/pepper#63); keep one per worker once that is possible.
+    server.serve((request) => {
+        var router = Router();
+        app(router);
+        return router.handle(request);
+    });
+}

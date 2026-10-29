@@ -1,0 +1,63 @@
+round 1 build build_ns 7175.998 handle_ns 2471.8615 sink 40200000
+round 1 b_stock c1 us_per_request 40.14227 requests 10000 failures 0 | c16 us_per_request 12.469100000000001 requests 48000 failures 0
+round 1 c_stock c1 us_per_request 31.53485 requests 10000 failures 0 | c16 us_per_request 5.5516875 requests 48000 failures 0
+round 1 e_stock c1 us_per_request 54.3095 requests 10000 failures 0 | c16 us_per_request 10.886099999999999 requests 48000 failures 0
+round 1 b_mod c1 us_per_request 42.27698 requests 10000 failures 0 | c16 us_per_request 9.384181250000001 requests 48000 failures 0
+round 1 c_mod c1 us_per_request 31.017879999999998 requests 10000 failures 0 | c16 us_per_request 6.211210416666666 requests 48000 failures 0
+round 1 d c1 us_per_request 29.708479999999998 requests 10000 failures 0 | c16 us_per_request 5.872702083333333 requests 48000 failures 0
+round 2 build build_ns 6684.3785 handle_ns 2419.592 sink 40200000
+round 2 b_stock c1 us_per_request 36.27455 requests 10000 failures 0 | c16 us_per_request 6.23520625 requests 48000 failures 0
+round 2 c_stock c1 us_per_request 35.78986 requests 10000 failures 0 | c16 us_per_request 5.269433333333333 requests 48000 failures 0
+round 2 e_stock c1 us_per_request 50.09864 requests 10000 failures 0 | c16 us_per_request 9.737227083333334 requests 48000 failures 0
+round 2 b_mod c1 us_per_request 39.459379999999996 requests 10000 failures 0 | c16 us_per_request 6.510685416666667 requests 48000 failures 0
+round 2 c_mod c1 us_per_request 33.10716 requests 10000 failures 0 | c16 us_per_request 5.978583333333333 requests 48000 failures 0
+round 2 d c1 us_per_request 37.05485 requests 10000 failures 0 | c16 us_per_request 6.5930625 requests 48000 failures 0
+round 3 build build_ns 6970.757 handle_ns 2431.3645 sink 40200000
+round 3 b_stock c1 us_per_request 40.85553 requests 10000 failures 0 | c16 us_per_request 6.318033333333333 requests 48000 failures 0
+round 3 c_stock c1 us_per_request 32.72811 requests 10000 failures 0 | c16 us_per_request 6.2071 requests 48000 failures 0
+round 3 e_stock c1 us_per_request 47.22797 requests 10000 failures 0 | c16 us_per_request 14.821127083333334 requests 48000 failures 0
+round 3 b_mod c1 us_per_request 39.14366 requests 10000 failures 0 | c16 us_per_request 6.287145833333334 requests 48000 failures 0
+round 3 c_mod c1 us_per_request 31.384959999999996 requests 10000 failures 0 | c16 us_per_request 6.237797916666667 requests 48000 failures 0
+round 3 d c1 us_per_request 31.181759999999997 requests 10000 failures 0 | c16 us_per_request 6.262199999999999 requests 48000 failures 0
+round 4 build build_ns 6726.9845 handle_ns 2541.8555 sink 40200000
+round 4 b_stock c1 us_per_request 49.88565 requests 10000 failures 0 | c16 us_per_request 6.476660416666667 requests 48000 failures 0
+round 4 c_stock c1 us_per_request 32.45836 requests 10000 failures 0 | c16 us_per_request 6.852637499999999 requests 48000 failures 0
+round 4 e_stock c1 us_per_request 53.04869 requests 10000 failures 0 | c16 us_per_request 9.243645833333334 requests 48000 failures 0
+round 4 b_mod c1 us_per_request 40.20494 requests 10000 failures 0 | c16 us_per_request 7.253541666666667 requests 48000 failures 0
+round 4 c_mod c1 us_per_request 29.76035 requests 10000 failures 0 | c16 us_per_request 5.6085375 requests 48000 failures 0
+round 4 d c1 us_per_request 32.87332 requests 10000 failures 0 | c16 us_per_request 5.920322916666667 requests 48000 failures 0
+round 5 build build_ns 6595.018 handle_ns 2370.969 sink 40200000
+round 5 b_stock c1 us_per_request 37.441759999999995 requests 10000 failures 0 | c16 us_per_request 5.9458520833333335 requests 48000 failures 0
+round 5 c_stock c1 us_per_request 28.40458 requests 10000 failures 0 | c16 us_per_request 5.179272916666667 requests 48000 failures 0
+round 5 e_stock c1 us_per_request 45.11077 requests 10000 failures 0 | c16 us_per_request 8.284691666666667 requests 48000 failures 0
+round 5 b_mod c1 us_per_request 39.10017 requests 10000 failures 0 | c16 us_per_request 7.222047916666666 requests 48000 failures 0
+round 5 c_mod c1 us_per_request 34.00289 requests 10000 failures 0 | c16 us_per_request 6.252535416666667 requests 48000 failures 0
+round 5 d c1 us_per_request 29.76677 requests 10000 failures 0 | c16 us_per_request 5.2845458333333335 requests 48000 failures 0
+round 6 build build_ns 6572.72 handle_ns 2352.982 sink 40200000
+round 6 b_stock c1 us_per_request 37.697520000000004 requests 10000 failures 0 | c16 us_per_request 6.9073520833333335 requests 48000 failures 0
+round 6 c_stock c1 us_per_request 29.72127 requests 10000 failures 0 | c16 us_per_request 5.283570833333333 requests 48000 failures 0
+round 6 e_stock c1 us_per_request 46.99654 requests 10000 failures 0 | c16 us_per_request 9.816025 requests 48000 failures 0
+round 6 b_mod c1 us_per_request 37.474340000000005 requests 10000 failures 0 | c16 us_per_request 7.835320833333334 requests 48000 failures 0
+round 6 c_mod c1 us_per_request 29.88542 requests 10000 failures 0 | c16 us_per_request 6.638941666666667 requests 48000 failures 0
+round 6 d c1 us_per_request 31.42019 requests 10000 failures 0 | c16 us_per_request 8.273695833333333 requests 48000 failures 0
+round 7 build build_ns 6479.719 handle_ns 2367.834 sink 40200000
+round 7 b_stock c1 us_per_request 37.73144 requests 10000 failures 0 | c16 us_per_request 7.8436625 requests 48000 failures 0
+round 7 c_stock c1 us_per_request 29.66033 requests 10000 failures 0 | c16 us_per_request 5.208460416666667 requests 48000 failures 0
+round 7 e_stock c1 us_per_request 45.38731 requests 10000 failures 0 | c16 us_per_request 8.50378125 requests 48000 failures 0
+round 7 b_mod c1 us_per_request 40.289190000000005 requests 10000 failures 0 | c16 us_per_request 9.1816 requests 48000 failures 0
+round 7 c_mod c1 us_per_request 30.983140000000002 requests 10000 failures 0 | c16 us_per_request 6.918058333333333 requests 48000 failures 0
+round 7 d c1 us_per_request 29.52688 requests 10000 failures 0 | c16 us_per_request 6.640154166666667 requests 48000 failures 0
+round 8 build build_ns 6389.1245 handle_ns 2347.847 sink 40200000
+round 8 b_stock c1 us_per_request 36.41118 requests 10000 failures 0 | c16 us_per_request 7.589089583333333 requests 48000 failures 0
+round 8 c_stock c1 us_per_request 28.44225 requests 10000 failures 0 | c16 us_per_request 6.083197916666666 requests 48000 failures 0
+round 8 e_stock c1 us_per_request 48.46759 requests 10000 failures 0 | c16 us_per_request 8.2386625 requests 48000 failures 0
+round 8 b_mod c1 us_per_request 40.459579999999995 requests 10000 failures 0 | c16 us_per_request 6.2332375 requests 48000 failures 0
+round 8 c_mod c1 us_per_request 29.65875 requests 10000 failures 0 | c16 us_per_request 6.262225 requests 48000 failures 0
+round 8 d c1 us_per_request 29.85387 requests 10000 failures 0 | c16 us_per_request 5.2978875 requests 48000 failures 0
+round 9 build build_ns 6872.564 handle_ns 2334.125 sink 40200000
+round 9 b_stock c1 us_per_request 36.06969 requests 10000 failures 0 | c16 us_per_request 7.5699625 requests 48000 failures 0
+round 9 c_stock c1 us_per_request 37.454840000000004 requests 10000 failures 0 | c16 us_per_request 5.4767874999999995 requests 48000 failures 0
+round 9 e_stock c1 us_per_request 47.93764 requests 10000 failures 0 | c16 us_per_request 7.881845833333333 requests 48000 failures 0
+round 9 b_mod c1 us_per_request 46.759609999999995 requests 10000 failures 0 | c16 us_per_request 12.82770625 requests 48000 failures 0
+round 9 c_mod c1 us_per_request 31.58148 requests 10000 failures 0 | c16 us_per_request 6.271154166666667 requests 48000 failures 0
+round 9 d c1 us_per_request 31.87309 requests 10000 failures 0 | c16 us_per_request 6.187177083333333 requests 48000 failures 0
