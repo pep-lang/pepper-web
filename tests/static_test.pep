@@ -25,9 +25,9 @@ get(url: String): http.Response {
     return answer(http.Request("GET", url));
 }
 
-# Sends `requests` (whose urls are paths) to a server running `routes`,
-# over loopback, and returns the responses.
-fetch(requests: Array<http.Request>): Array<http.Response> {
+# Sends `requests` (whose urls are paths) to a server running `app`, over
+# loopback, on one connection (a `Session`), and returns the responses.
+fetch(requests: Array<http.Request>, app: shared (web.Router) => void = routes): Array<http.Response> {
     # The client sets up TLS once for the program (OpenSSL, on Linux and
     # macOS), which the leak check would count; the runtime's tests do the same.
     keep_for_the_program(() => {
@@ -38,15 +38,32 @@ fetch(requests: Array<http.Request>): Array<http.Response> {
         var server = http.Server.bind(io.SocketAddress.parse("127.0.0.1:0").value()).value();
         var port = server.local_address().value().port();
         async.spawn<void>(() => {
-            web.serve(server, routes);
+            web.serve(server, app);
         });
-        var client = http.Client();
+        var client = http.Client().session();
         for (var request in requests) {
             request.url = $"http://127.0.0.1:{port}{request.url}";
             responses.append(client.send(request).value());
         }
     });
     return responses;
+}
+
+# How many routers `counted_routes` has set up.
+const _routers_built = async.Atomic<int>(0);
+
+counted_routes(router: web.Router) {
+    _routers_built.fetch_add(1);
+    routes(router);
+}
+
+[Test]
+builds_one_router_per_connection() {
+    var before = _routers_built.load();
+    var paths = [http.Request("GET", "/static/hello.txt"), http.Request("GET", "/static/hello.txt")];
+    var responses = fetch(paths, counted_routes);
+    expect_equal(responses[1].status, 200);
+    expect_equal(_routers_built.load() - before, 1);
 }
 
 [Test]

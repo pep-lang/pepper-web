@@ -1,6 +1,10 @@
 [package]
 name = "web"
-version = "1.0.1"
+version = "1.1.0"
 description = "A web framework over http.Server: routing, middleware, cookies, forms and static files"
 license = "Apache-2.0"
 repository = "https://github.com/pep-lang/pepper-web"
+# The oldest Pepper toolchain that builds the package (0.12 added
+# `http.Server.serve_each`): CI also tests with it, and `pepper package`
+# skips a version whose minimum is newer than the user's toolchain.
+minimum_toolchain = "0.12.0"
