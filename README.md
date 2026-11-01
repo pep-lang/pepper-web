@@ -18,7 +18,7 @@ One module, **`web`**:
   included: `m(context, next)` may answer by itself or call `next(context)`.
   `log_requests` logs each request through the runtime's `log`.
 - **`web.serve(server, app)`** runs a router on an `http.Server`: `app`
-  adds the routes to a new `Router`.
+  adds the routes to a new `Router`, one for each connection.
 - **Responses**: `text`, `html`, `json_response` and `redirect`.
 - **Cookies**: `Cookie` with `Path`, `Domain`, `Max-Age`, `Expires`,
   `Secure`, `HttpOnly` and `SameSite`, written with `set_cookie`; a
@@ -101,14 +101,17 @@ with `pepper run -I packages examples/app/main.pep`.
 
 `http.Server` answers requests on every worker thread of `async.run`, and
 a router and its handlers (plain closures) are not thread-safe. So
-`web.serve` builds a router for each request by calling `app`: keep `app`
-to adding routes, and keep state the handlers share in thread-safe values
-at module scope, such as an `async.Atomic<T>` or a `[Shared]` struct.
+`web.serve` builds a router for each connection by calling `app`
+(`http.Server.serve_each`), and the connection's worker answers all its
+requests with it: keep `app` to adding routes, and keep state the
+handlers share in thread-safe values at module scope, such as an
+`async.Atomic<T>` or a `[Shared]` struct. The streams of an HTTP/2
+connection share its router.
 
 ## Limits
 
-- The router is rebuilt for every request (see above, and
-  pep-lang/pepper#63), which costs a few allocations per route.
+- The router is built for every connection (see above), which costs a
+  few allocations per route on each new connection.
 - No recovery from panics: a panicking handler ends the program, as any
   panic does.
 - Request bodies are read in full by `http.Server` (16 MiB at most), so

@@ -135,7 +135,7 @@ struct _Route {
 ## field; a path with an invalid percent-escape gets `400 Bad Request`.
 ## These pass through the middleware too.
 ##
-## A router is used on one thread; `serve` builds one for each request.
+## A router is used on one thread; `serve` builds one for each connection.
 ##
 ## @example
 ##     var router = web.Router();
@@ -340,13 +340,15 @@ _status(status: int): http.Response {
 }
 
 ## Serves requests from `server` with a router that `app` sets up, until
-## the task is cancelled (when `async.run` ends). For each request it makes
-## a `Router`, calls `app` to add the routes and middleware, and lets the
-## router answer. A router and its handlers are not thread-safe, so they
-## are not shared between the worker threads of `async.run`: keep `app` to
-## adding routes, and put state the handlers share, such as a connection
-## pool or a counter, in a `[Shared]` struct (or an `async.Atomic<T>`) at
-## module scope.
+## the task is cancelled (when `async.run` ends). For each connection it
+## makes a `Router` and calls `app` to add the routes and middleware; that
+## router answers every request on the connection, on the connection's
+## worker. A router and its handlers are not thread-safe, so they are not
+## shared between the worker threads of `async.run`: keep `app` to adding
+## routes, and put state the handlers share, such as a connection pool or a
+## counter, in a `[Shared]` struct (or an `async.Atomic<T>`) at module
+## scope. The streams of an HTTP/2 connection share its router, so a
+## handler may run while another stream's call to it is waiting.
 ##
 ## @param server the server, from `http.Server.bind` or `bind_tls`
 ## @param app adds the routes and middleware to a new router
@@ -364,12 +366,9 @@ _status(status: int): http.Response {
 ##         return 0;
 ##     }
 export serve(server: http.Server, app: shared (Router) => void) {
-    # shortcut: a router per request, since a thread-local one can neither
-    # take the request nor hand back the response without copying both
-    # (pep-lang/pepper#63); keep one per worker once that is possible.
-    server.serve((request) => {
+    server.serve_each(() => {
         var router = Router();
         app(router);
-        return router.handle(request);
+        return (request) => router.handle(request);
     });
 }
