@@ -8,3 +8,7 @@ repository = "https://github.com/pep-lang/pepper-web"
 # `http.Server.serve_each`): CI also tests with it, and `pepper package`
 # skips a version whose minimum is newer than the user's toolchain.
 minimum_toolchain = "0.12.0"
+
+# The tests serve a WebSocket route (tests/websocket_test.pep).
+[dev-dependencies]
+websocket = { github = "pep-lang/pepper-websocket", version = "1.1.0" }
