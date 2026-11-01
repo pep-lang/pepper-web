@@ -5,6 +5,7 @@
 import async;
 import http;
 import io;
+import tls;
 import web;
 import websocket;
 
@@ -24,6 +25,11 @@ chat_routes(router: web.Router) {
 
 [Test]
 a_route_accepts_a_websocket_beside_plain_routes() {
+    # The client sets up TLS once for the program (OpenSSL, on Linux and
+    # macOS), which the leak check would count, as in static_test.pep.
+    keep_for_the_program(() => {
+        tls.TlsConnector.create();
+    });
     async.run(() => {
         var server = http.Server.bind(io.SocketAddress.parse("127.0.0.1:0").value()).value();
         var port = server.local_address().value().port();
