@@ -97,6 +97,36 @@ This is [`examples/app/main.pep`](examples/app/main.pep); from the root of
 this repository, with the package on the import path (see below), run it
 with `pepper run -I packages examples/app/main.pep`.
 
+## WebSockets
+
+A route answers a WebSocket handshake with
+[pepper-websocket](https://github.com/pep-lang/pepper-websocket)'s
+`WebSocket.accept(request, handler)` (version 1.1 or later): it returns
+the `101 Switching Protocols` response, and once the server has sent it,
+`handler` speaks WebSocket on the connection. A request that is not a
+valid upgrade gets `400`, `426` or `501` instead. So a WebSocket route
+shares its port, and a `bind_tls` listener, with the plain ones:
+
+```pepper
+import websocket;
+
+routes(router: web.Router) {
+    router.get("/", (c) => web.text("home"));
+    router.get("/chat", (c) => websocket.WebSocket.accept(c.request, (socket) => {
+        while (true) {
+            var message = socket.receive();
+            if (message.is_err() || message.value().is_close()) {
+                return;
+            }
+            socket.send_text("echo: " + message.value().text());
+        }
+    }));
+}
+```
+
+Add pepper-websocket as a dependency of your project
+(`pepper package add pep-lang/pepper-websocket --name websocket`).
+
 ## Threads
 
 `http.Server` answers requests on every worker thread of `async.run`, and
@@ -119,9 +149,6 @@ connection share its router.
 - Static files: several ranges in one request get the whole file; no
   `Last-Modified` or `If-Modified-Since`; symbolic links inside the root
   are followed, and dotfiles are served like other files.
-- No WebSocket upgrades from a route (pep-lang/pepper#47); use
-  [pepper-websocket](https://github.com/pep-lang/pepper-websocket) on its
-  own listener.
 
 ## Using it
 
